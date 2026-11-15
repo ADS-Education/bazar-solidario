@@ -129,7 +129,8 @@ public class Bazar {
                 SELECT COALESCE(json_agg(json_build_object('id', p.id, 'description', p.descricao)
                                          ORDER BY p.id), '[]'::json)
                 FROM peca p
-                WHERE NOT EXISTS (SELECT 1 FROM venda v WHERE v.peca_id = p.id)
+                     
+                WHERE NOT EXISTS (SELECT 1 FROM venda v WHERE v.peca_id = p.id) 
                 """;
         try (var consulta = banco.prepareStatement(sql); var resultado = consulta.executeQuery()) {
             resultado.next();
