@@ -17,7 +17,7 @@ jobs:
           POSTGRES_DB: bazar
           POSTGRES_PASSWORD: ci-test-password
         ports:
-          - 5432:5432
+          - 5432/tcp
         options: >-
           --health-cmd "pg_isready -U postgres -d bazar"
           --health-interval 5s
@@ -40,8 +40,11 @@ jobs:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: docker exec -i "$POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d bazar < banco.sql
       - name: Testar login, doação e venda pela API
+        env:
+          BAZAR_DB_URL: jdbc:postgresql://127.0.0.1:${{ job.services.postgres.ports[5432] }}/bazar?connectTimeout=5
         run: |
-          mvn -B exec:java > app.log 2>&1 &
+          mvn -B dependency:build-classpath -Dmdep.outputFile=target/runtime-classpath.txt -DincludeScope=runtime
+          java -cp "target/classes:$(cat target/runtime-classpath.txt)" bazar.Bazar > app.log 2>&1 &
           app_pid=$!
           trap 'kill "$app_pid" 2>/dev/null || true' EXIT
           for attempt in {1..30}; do
