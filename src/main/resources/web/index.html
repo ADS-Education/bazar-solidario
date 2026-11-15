@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bazar Solidário da FAM</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">fam</span><span>Bazar Solidário da FAM</span></div>
+      <button id="logout" type="button" class="button button-quiet" hidden>Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="login-view" class="panel" aria-labelledby="login-title">
+      <h1 id="login-title" tabindex="-1">Entrar</h1>
+      <form id="login-form" method="post">
+        <label for="username">Usuário</label>
+        <input id="username" name="username" autocomplete="username" required>
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <p id="login-error" class="notice error" role="alert" hidden>Usuário ou senha inválidos.</p>
+        <button class="button button-primary" type="submit">Entrar</button>
+      </form>
+    </section>
+
+    <section id="list-view" aria-labelledby="list-title" hidden>
+      <div class="page-heading">
+        <h1 id="list-title" tabindex="-1">Peças disponíveis</h1>
+        <button id="new-donation" class="button button-primary" type="button">Nova doação</button>
+      </div>
+      <p id="list-notice" class="notice" role="status" hidden></p>
+      <ul id="piece-list" class="piece-list"></ul>
+      <p id="empty-list" class="empty-state" hidden>Nenhuma peça disponível.</p>
+    </section>
+
+    <section id="donation-view" class="panel" aria-labelledby="donation-title" hidden>
+      <h1 id="donation-title" tabindex="-1">Nova doação</h1>
+      <form id="donation-form" method="post" novalidate>
+        <label for="description">Descrição</label>
+        <input id="description" name="description" maxlength="100" required aria-describedby="donation-error">
+        <p id="donation-error" class="notice error" role="alert" hidden>Informe a descrição.</p>
+        <div class="actions">
+          <button class="button button-primary" type="submit">Salvar</button>
+          <button id="cancel-donation" class="button button-secondary" type="button">Voltar</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="sale-view" class="panel" aria-labelledby="sale-title" hidden>
+      <h1 id="sale-title" tabindex="-1">Registrar venda</h1>
+      <div class="piece-summary">
+        <span id="sale-code" class="piece-code"></span>
+        <p id="sale-description"></p>
+      </div>
+      <p id="sale-result" class="notice" role="status" tabindex="-1" hidden></p>
+      <div class="actions">
+        <button id="confirm-sale" class="button button-primary" type="button">Confirmar venda</button>
+        <button id="back-to-list" class="button button-secondary" type="button">Voltar à lista</button>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
