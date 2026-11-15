@@ -35,8 +35,9 @@ public class Bazar {
         System.out.println("Bazar Solidário da FAM: http://127.0.0.1:8080/");
     }
 
+    
     private static void atender(HttpExchange troca) throws IOException {
-        String rota = troca.getRequestMethod() + " " + troca.getRequestURI().getPath();
+        String rota = troca.getRequestMethod() + " " +  troca.getRequestURI().getPath();
         try {
             if (rota.equals("GET /") || rota.equals("GET /style.css") || rota.equals("GET /app.js")) {
                 String arquivo = rota.equals("GET /") ? "index.html" : rota.substring(5);
