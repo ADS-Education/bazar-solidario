@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS peca (
     descricao VARCHAR(100) NOT NULL CHECK (length(btrim(descricao)) > 0)
 );
 
+
 CREATE TABLE IF NOT EXISTS venda (
     peca_id INTEGER PRIMARY KEY REFERENCES peca(id),
     data_venda DATE NOT NULL DEFAULT CURRENT_DATE

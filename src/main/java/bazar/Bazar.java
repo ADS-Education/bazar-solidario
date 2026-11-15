@@ -35,8 +35,9 @@ public class Bazar {
         System.out.println("Bazar Solidário da FAM: http://127.0.0.1:8080/");
     }
 
+    
     private static void atender(HttpExchange troca) throws IOException {
-        String rota = troca.getRequestMethod() + " " + troca.getRequestURI().getPath();
+        String rota = troca.getRequestMethod() + " " +  troca.getRequestURI().getPath();
         try {
             if (rota.equals("GET /") || rota.equals("GET /style.css") || rota.equals("GET /app.js")) {
                 String arquivo = rota.equals("GET /") ? "index.html" : rota.substring(5);
@@ -128,7 +129,8 @@ public class Bazar {
                 SELECT COALESCE(json_agg(json_build_object('id', p.id, 'description', p.descricao)
                                          ORDER BY p.id), '[]'::json)
                 FROM peca p
-                WHERE NOT EXISTS (SELECT 1 FROM venda v WHERE v.peca_id = p.id)
+                     
+                WHERE NOT EXISTS (SELECT 1 FROM venda v WHERE v.peca_id = p.id) 
                 """;
         try (var consulta = banco.prepareStatement(sql); var resultado = consulta.executeQuery()) {
             resultado.next();
