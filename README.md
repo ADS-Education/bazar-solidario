@@ -1,18 +1,22 @@
 # Bazar Solidário da FAM
 
-Projeto de Software, Experiência Prática III (T01). O sistema cadastra peças doadas, lista as disponíveis e registra vendas. A organização das peças para reúso se relaciona ao ODS 12, meta 12.5.
+Projeto de Software (T01). O sistema ajuda a cadastrar peças doadas, consultar as disponíveis e registrar vendas. O projeto se relaciona ao ODS 12, meta 12.5.
 
-## Como rodar
+## Versão de demonstração
 
-1. Crie um banco chamado `bazar` no PostgreSQL. Abra esse banco no DBeaver ou pgAdmin e execute o arquivo `banco.sql`.
-2. Configure `BAZAR_DB_PASSWORD` com a senha do banco e `BAZAR_PASSWORD` com a senha que você quer usar na tela de login. O usuário da tela é `demo` por padrão.
-3. No NetBeans, use **Arquivo > Abrir Projeto** e escolha a pasta `bazar-solidario` (onde fica o `pom.xml`). Use o JDK 21 ou superior e clique em **Executar Projeto**. Se o NetBeans perguntar pela classe principal, escolha `bazar.Bazar`.
-4. No navegador, abra [http://127.0.0.1:8080](http://127.0.0.1:8080).
+Esta versão usa dados de exemplo na memória, sem acessar o PostgreSQL. As alterações ficam disponíveis enquanto o servidor estiver ligado e são perdidas ao reiniciá-lo. O arquivo `banco.sql` e as consultas da versão anterior foram preservados para a futura integração com o banco. Categoria e valor ainda precisarão ser adicionados ao esquema e às consultas quando o PostgreSQL for reconectado.
 
-No Windows, configure as duas variáveis em **Editar as variáveis de ambiente da sua conta** e reabra o NetBeans para que ele as carregue. Se o banco estiver em outro endereço ou usar outro usuário, configure também `BAZAR_DB_URL` e `BAZAR_DB_USER`. Os padrões são `jdbc:postgresql://127.0.0.1:5432/bazar` e `postgres`. Se mudar o usuário do sistema, defina `BAZAR_USER`.
+Depois do login, o painel mostra a quantidade de peças e os gráficos de situação e de vendas nos últimos sete dias. A aplicação também permite cadastrar categoria e valor sugerido, buscar uma peça por nome ou código, filtrar por categoria e consultar o histórico de vendas. O painel mostra vendas de hoje e as últimas vendas. Os gráficos usam Chart.js carregado pela internet; se não carregar, os números continuam visíveis.
 
-Para executar pelo terminal, use `mvn compile exec:java` na pasta do projeto, com as mesmas variáveis configuradas. O servidor desta versão escuta apenas na máquina local.
+## Como executar
+
+1. Instale Java 21 e Maven ou use o NetBeans com JDK 21.
+2. Use o usuário `demo` e a senha `123456` na tela de entrada.
+3. Na pasta do projeto, execute `mvn compile exec:java`. No NetBeans, abra o projeto e execute a classe `bazar.Bazar`.
+4. Acesse http://127.0.0.1:8080 no navegador. O servidor desta versão aceita apenas acessos da própria máquina.
 
 ## Como testar
 
-Entre com o usuário `demo` e a senha configurada. Consulte a camiseta azul de código #21, cadastre uma calça preta e registre a venda. Ao voltar à lista, a calça deve ter saído. Os dados ficam no PostgreSQL.
+Entre com `demo` e a senha `123456`. No painel, observe os totais e gráficos. Cadastre uma doação com categoria e valor, busque a peça pelo nome ou código, filtre pela categoria, registre a venda e confira o histórico e a atualização do painel. Ao reiniciar a aplicação, os dados de exemplo voltam ao estado inicial.
+
+A rotina de CI testa a API com dados simulados. A conexão com PostgreSQL será retomada após a aprovação dos testes desta etapa.

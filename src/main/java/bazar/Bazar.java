@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -11,28 +12,34 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 public class Bazar {
     private static final Map<String, Instant> SESSOES = new HashMap<>();
+    private record Peca(int id, String descricao, String categoria, BigDecimal valor) {}
+    private record Venda(int pecaId, LocalDate dataVenda) {}
+    private static final List<Peca> PECAS = new ArrayList<>(List.of(
+            new Peca(21, "Camiseta azul", "Roupas", new BigDecimal("15.00")), new Peca(22, "Calça jeans", "Roupas", new BigDecimal("25.00")),
+            new Peca(23, "Vestido floral", "Roupas", new BigDecimal("30.00")), new Peca(24, "Bolsa preta", "Acessórios", new BigDecimal("20.00")),
+            new Peca(25, "Blusa branca", "Roupas", new BigDecimal("15.00")), new Peca(26, "Tênis infantil", "Calçados", new BigDecimal("22.00"))));
+    private static final List<Venda> VENDAS = new ArrayList<>(List.of(
+            new Venda(25, LocalDate.now().minusDays(2)), new Venda(26, LocalDate.now().minusDays(1))));
+    private static int proximoId = 27;
     private static final String TIPO_TEXTO = "text/plain; charset=UTF-8";
     private static final int SESSAO_SEGUNDOS = 30 * 60;
 
     public static void main(String[] args) throws IOException {
-        for (String variavel : new String[]{"BAZAR_DB_PASSWORD", "BAZAR_PASSWORD"}) {
-            String valor = System.getenv(variavel);
-            if (valor == null || valor.isBlank()) {
-                System.err.println("Configure a variável " + variavel + " antes de executar.");
-                return;
-            }
-        }
-
-        HttpServer servidor = HttpServer.create(new InetSocketAddress("127.0.0.1", 8080), 0);
+        String host = System.getenv().getOrDefault("BAZAR_HOST", "127.0.0.1");
+        int porta = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
+        HttpServer servidor = HttpServer.create(new InetSocketAddress(host, porta), 0);
         servidor.createContext("/", Bazar::atender);
         servidor.start();
-        System.out.println("Bazar Solidário da FAM: http://127.0.0.1:8080/");
+        System.out.println("Bazar Solidário da FAM iniciado na porta " + porta);
     }
 
     
@@ -50,7 +57,7 @@ public class Bazar {
                     troca.getResponseHeaders().set("Content-Type", tipo);
                     troca.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
                     troca.getResponseHeaders().set("Content-Security-Policy",
-                            "default-src 'self'; frame-ancestors 'none'; form-action 'self'");
+                            "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'none'; form-action 'self'");
                     byte[] dados = conteudo.readAllBytes();
                     troca.sendResponseHeaders(200, dados.length);
                     troca.getResponseBody().write(dados);
@@ -60,7 +67,8 @@ public class Bazar {
 
             if (!rota.equals("POST /api/entrar") && !rota.equals("POST /api/sair")
                     && !rota.equals("GET /api/pecas") && !rota.equals("POST /api/pecas")
-                    && !rota.equals("POST /api/vendas")) {
+                    && !rota.equals("POST /api/vendas") && !rota.equals("GET /api/dashboard")
+                    && !rota.equals("GET /api/historico")) {
                 responder(troca, 404, "Página não encontrada.");
                 return;
             }
@@ -72,8 +80,7 @@ public class Bazar {
 
             if (rota.equals("POST /api/entrar")) {
                 Map<String, String> dados = lerFormulario(troca);
-                String usuario = System.getenv().getOrDefault("BAZAR_USER", "demo");
-                if (!usuario.equals(dados.get("usuario")) || !System.getenv("BAZAR_PASSWORD").equals(dados.get("senha"))) {
+                if (!"demo".equals(dados.get("usuario")) || !"123456".equals(dados.get("senha"))) {
                     responder(troca, 401, "Usuário ou senha inválidos.");
                     return;
                 }
@@ -104,24 +111,102 @@ public class Bazar {
             }
 
             SESSOES.put(sessao, agora.plusSeconds(SESSAO_SEGUNDOS));
-            try (Connection banco = DriverManager.getConnection(
-                    System.getenv().getOrDefault("BAZAR_DB_URL", "jdbc:postgresql://127.0.0.1:5432/bazar?connectTimeout=5"),
-                    System.getenv().getOrDefault("BAZAR_DB_USER", "postgres"),
-                    System.getenv("BAZAR_DB_PASSWORD"))) {
-                switch (rota) {
-                    case "GET /api/pecas" -> listar(troca, banco);
-                    case "POST /api/pecas" -> cadastrar(troca, banco);
-                    case "POST /api/vendas" -> vender(troca, banco);
-                }
+            switch (rota) {
+                case "GET /api/pecas" -> listarExemplo(troca);
+                case "POST /api/pecas" -> cadastrarExemplo(troca);
+                case "POST /api/vendas" -> venderExemplo(troca);
+                case "GET /api/dashboard" -> dashboardExemplo(troca);
+                case "GET /api/historico" -> historicoExemplo(troca);
             }
         } catch (IllegalArgumentException erro) {
             responder(troca, 400, "Dados inválidos.");
-        } catch (SQLException erro) {
-            System.err.println("Falha no banco. Código SQL: " + erro.getSQLState());
-            responder(troca, 503, "Não foi possível acessar o banco. Tente novamente.");
         } finally {
             troca.close();
         }
+    }
+
+    private static boolean vendida(int id) {
+        return VENDAS.stream().anyMatch(venda -> venda.pecaId() == id);
+    }
+
+    // Escapa os caracteres pra descrição nao quebrar o JSON.
+    private static String json(String valor) {
+        StringBuilder saida = new StringBuilder("\"");
+        for (char c : valor.toCharArray()) {
+            switch (c) {
+                case '\"' -> saida.append("\\\"");
+                case '\\' -> saida.append("\\\\");
+                case '\n' -> saida.append("\\n");
+                case '\r' -> saida.append("\\r");
+                case '\t' -> saida.append("\\t");
+                default -> { if (c < 32) saida.append(String.format("\\u%04x", (int) c)); else saida.append(c); }
+            }
+        }
+        return saida.append("\"").toString();
+    }
+
+    private static void listarExemplo(HttpExchange troca) throws IOException {
+        List<String> itens = new ArrayList<>();
+        for (Peca p : PECAS) {
+            if (!vendida(p.id())) itens.add("{\"id\":" + p.id() + ",\"description\":" + json(p.descricao()) + ",\"categoria\":" + json(p.categoria()) + ",\"valor\":" + p.valor().toPlainString() + "}");
+        }
+        responder(troca, 200, "[" + String.join(",", itens) + "]", "application/json; charset=UTF-8");
+    }
+
+    private static void cadastrarExemplo(HttpExchange troca) throws IOException {
+        Map<String, String> dados = lerFormulario(troca);
+        String descricao = dados.getOrDefault("descricao", "").strip();
+        if (descricao.isBlank() || descricao.length() > 100 || descricao.indexOf(0) >= 0) {
+            responder(troca, 400, "Informe a descrição com até 100 caracteres.");
+            return;
+        }
+        String categoria = dados.getOrDefault("categoria", "");
+        if (!List.of("Roupas", "Calçados", "Acessórios", "Outros").contains(categoria)) {
+            responder(troca, 400, "Selecione uma categoria válida."); return;
+        }
+        BigDecimal valor;
+        try {
+            valor = new BigDecimal(dados.getOrDefault("valor", ""));
+            if (valor.scale() > 2 || valor.signum() < 0 || valor.compareTo(new BigDecimal("999999.99")) > 0) throw new NumberFormatException();
+        } catch (NumberFormatException erro) {
+            responder(troca, 400, "Informe um valor válido de até R$ 999.999,99."); return;
+        }
+        int id = proximoId++;
+        PECAS.add(new Peca(id, descricao, categoria, valor));
+        responder(troca, 201, "Doação salva. Código #" + id + ".");
+    }
+
+    private static void venderExemplo(HttpExchange troca) throws IOException {
+        int id = Integer.parseInt(lerFormulario(troca).getOrDefault("id", ""));
+        if (id <= 0) { responder(troca, 400, "Código da peça inválido."); return; }
+        boolean existe = PECAS.stream().anyMatch(p -> p.id() == id);
+        if (!existe || vendida(id)) { responder(troca, 409, "Esta peça já não está disponível."); return; }
+        VENDAS.add(new Venda(id, LocalDate.now()));
+        responder(troca, 201, "Venda registrada.");
+    }
+
+    private static void dashboardExemplo(HttpExchange troca) throws IOException {
+        List<String> dias = new ArrayList<>();
+        for (int i = 6; i >= 0; i--) {
+            LocalDate data = LocalDate.now().minusDays(i);
+            long total = VENDAS.stream().filter(v -> v.dataVenda().equals(data)).count();
+            dias.add("{\"data\":" + json(data.toString()) + ",\"total\":" + total + "}");
+        }
+        long vendasHoje = VENDAS.stream().filter(v -> v.dataVenda().equals(LocalDate.now())).count();
+        String corpo = "{\"vendasHoje\":" + vendasHoje + ",\"cadastradas\":" + PECAS.size() + ",\"disponiveis\":" + (PECAS.size() - VENDAS.size())
+                + ",\"vendidas\":" + VENDAS.size() + ",\"vendasPorDia\":[" + String.join(",", dias) + "]}";
+        responder(troca, 200, corpo, "application/json; charset=UTF-8");
+    }
+
+    private static void historicoExemplo(HttpExchange troca) throws IOException {
+        List<String> itens = new ArrayList<>();
+        for (int i = VENDAS.size() - 1; i >= 0; i--) {
+            Venda v = VENDAS.get(i);
+            for (Peca p : PECAS) if (p.id() == v.pecaId()) {
+                itens.add("{\"id\":" + p.id() + ",\"description\":" + json(p.descricao()) + ",\"categoria\":" + json(p.categoria()) + ",\"valor\":" + p.valor().toPlainString() + ",\"dataVenda\":" + json(v.dataVenda().toString()) + "}");
+            }
+        }
+        responder(troca, 200, "[" + String.join(",", itens) + "]", "application/json; charset=UTF-8");
     }
 
     private static void listar(HttpExchange troca, Connection banco) throws SQLException, IOException {

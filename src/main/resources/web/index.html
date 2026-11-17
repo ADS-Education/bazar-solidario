@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Bazar Solidário da FAM</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -15,17 +16,46 @@
     </div>
   </header>
 
+  <nav id="navigation" class="navigation" aria-label="Navegação principal" hidden>
+    <button id="nav-dashboard" class="button button-quiet" type="button">Início</button>
+    <button id="nav-pieces" class="button button-quiet" type="button">Peças disponíveis</button>
+    <button id="nav-history" class="button button-quiet" type="button">Histórico de vendas</button>
+  </nav>
   <main>
     <section id="login-view" class="panel" aria-labelledby="login-title">
       <h1 id="login-title" tabindex="-1">Entrar</h1>
       <form id="login-form" method="post">
         <label for="username">Usuário</label>
-        <input id="username" name="username" autocomplete="username" required>
+        <input id="username" name="username" value="demo" autocomplete="username" required>
         <label for="password">Senha</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <input id="password" name="password" type="password" value="123456" autocomplete="current-password" required>
         <p id="login-error" class="notice error" role="alert" hidden>Usuário ou senha inválidos.</p>
         <button class="button button-primary" type="submit">Entrar</button>
       </form>
+    </section>
+
+    <section id="dashboard-view" aria-labelledby="dashboard-title" hidden>
+      <div class="page-heading"><div><h1 id="dashboard-title" tabindex="-1">Visão geral</h1><p>Acompanhe a movimentação do bazar.</p></div><button id="dashboard-donation" class="button button-primary" type="button">Nova doação</button></div>
+      <p id="dashboard-error" class="notice error" role="alert" hidden></p>
+      <div class="stats">
+        <article class="stat"><span>Peças cadastradas</span><strong id="total-pieces">0</strong></article>
+        <article class="stat"><span>Disponíveis</span><strong id="total-available">0</strong></article>
+        <article class="stat"><span>Vendidas</span><strong id="total-sold">0</strong></article>
+        <article class="stat"><span>Vendas de hoje</span><strong id="total-today">0</strong></article>
+      </div>
+      <div class="charts">
+        <article class="panel"><h2>Situação das peças</h2><div class="chart"><canvas id="status-chart" role="img" aria-label="Gráfico de peças disponíveis e vendidas"></canvas></div></article>
+        <article class="panel"><h2>Vendas nos últimos 7 dias</h2><div class="chart"><canvas id="sales-chart" role="img" aria-label="Gráfico de vendas dos últimos sete dias"></canvas></div></article>
+      </div>
+      <p id="chart-error" class="notice error" hidden>Não foi possível carregar os gráficos. Confira sua conexão com a internet.</p>
+      <section class="recent-sales" aria-labelledby="recent-title"><div class="page-heading"><h2 id="recent-title">Últimas vendas</h2><button id="view-history" class="button button-quiet" type="button">Ver histórico</button></div><ul id="recent-list" class="piece-list"></ul><p id="recent-empty" class="empty-state" hidden>Nenhuma venda registrada.</p></section>
+    </section>
+
+    <section id="history-view" aria-labelledby="history-title" hidden>
+      <div class="page-heading"><h1 id="history-title" tabindex="-1">Histórico de vendas</h1></div>
+      <p id="history-notice" class="notice error" role="alert" hidden></p>
+      <ul id="history-list" class="piece-list"></ul>
+      <p id="empty-history" class="empty-state" hidden>Nenhuma venda registrada.</p>
     </section>
 
     <section id="list-view" aria-labelledby="list-title" hidden>
@@ -34,6 +64,10 @@
         <button id="new-donation" class="button button-primary" type="button">Nova doação</button>
       </div>
       <p id="list-notice" class="notice" role="status" hidden></p>
+      <label for="search-piece">Buscar por nome ou código</label>
+      <input id="search-piece" type="search" placeholder="Digite o nome ou código da peça">
+      <label for="filter-category">Categoria</label>
+      <select id="filter-category"><option value="">Todas as categorias</option><option>Roupas</option><option>Calçados</option><option>Acessórios</option><option>Outros</option></select>
       <ul id="piece-list" class="piece-list"></ul>
       <p id="empty-list" class="empty-state" hidden>Nenhuma peça disponível.</p>
     </section>
@@ -43,6 +77,10 @@
       <form id="donation-form" method="post" novalidate>
         <label for="description">Descrição</label>
         <input id="description" name="description" maxlength="100" required aria-describedby="donation-error">
+        <label for="category">Categoria</label>
+        <select id="category" name="categoria" required><option value="">Selecione uma categoria</option><option>Roupas</option><option>Calçados</option><option>Acessórios</option><option>Outros</option></select>
+        <label for="price">Valor sugerido (R$)</label>
+        <input id="price" name="valor" type="number" min="0" max="999999.99" step="0.01" inputmode="decimal" required>
         <p id="donation-error" class="notice error" role="alert" hidden>Informe a descrição.</p>
         <div class="actions">
           <button class="button button-primary" type="submit">Salvar</button>
@@ -56,6 +94,7 @@
       <div class="piece-summary">
         <span id="sale-code" class="piece-code"></span>
         <p id="sale-description"></p>
+        <p id="sale-details" class="piece-meta"></p>
       </div>
       <p id="sale-result" class="notice" role="status" tabindex="-1" hidden></p>
       <div class="actions">

@@ -7,25 +7,9 @@ permissions:
 
 jobs:
   build-test:
-    name: Build e testes de integração
+    name: Build e testes com dados simulados
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_DB: bazar
-          POSTGRES_PASSWORD: ci-test-password
-        ports:
-          - 5432/tcp
-        options: >-
-          --health-cmd "pg_isready -U postgres -d bazar"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      BAZAR_DB_PASSWORD: ci-test-password
-      BAZAR_PASSWORD: ci-app-password
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -35,13 +19,7 @@ jobs:
           cache: maven
       - name: Build com Maven
         run: mvn -B verify
-      - name: Preparar banco PostgreSQL
-        env:
-          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
-        run: docker exec -i "$POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d bazar < banco.sql
-      - name: Testar login, doação e venda pela API
-        env:
-          BAZAR_DB_URL: jdbc:postgresql://127.0.0.1:${{ job.services.postgres.ports[5432] }}/bazar?connectTimeout=5
+      - name: Testar login, doação e venda com dados simulados
         run: |
           mvn -B dependency:build-classpath -Dmdep.outputFile=target/runtime-classpath.txt -DincludeScope=runtime
           java -cp "target/classes:$(cat target/runtime-classpath.txt)" bazar.Bazar > app.log 2>&1 &
@@ -78,7 +56,7 @@ jobs:
                       return response.code, response.read().decode()
 
               def login(self):
-                  self.assertEqual(self.request('entrar', {'usuario': 'demo', 'senha': 'ci-app-password'})[0], 200)
+                  self.assertEqual(self.request('entrar', {'usuario': 'demo', 'senha': '123456'})[0], 200)
 
               def available_ids(self):
                   status, body = self.request('pecas')
@@ -94,7 +72,7 @@ jobs:
 
               def test_doacao_e_venda_atualizam_pecas_disponiveis(self):
                   self.login()
-                  status, body = self.request('pecas', {'descricao': 'Camiseta do teste CI'})
+                  status, body = self.request('pecas', {'descricao': 'Camiseta do teste CI', 'categoria': 'Roupas', 'valor': '15.00'})
                   self.assertEqual(status, 201)
                   match = re.search(r'#([0-9]+)', body)
                   self.assertIsNotNone(match, body)
